@@ -38,3 +38,4 @@ a. 新建 .gitignore 写两行：
 *.log
 b. git add .gitignore && git commit -m "chore: 忽略可执行文件"
 把以上 6 步亲手敲一遍，你就从“网盘用户”升级到“真正在用版本控制”。
+已完成√
