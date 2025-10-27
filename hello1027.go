@@ -11,3 +11,4 @@ func main() {		//start of main function
 	fmt.Printf("%x\n", n)//hexadecimal
 	fmt.Printf("%v\n", n)//default format
 }//end of main function
+now 现在处于一个新的时代
