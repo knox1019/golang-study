@@ -12,3 +12,5 @@ a. git switch -c feature-test （创建并切换）
 b. 随便改代码、commit。
 c. git switch main → 发现 main 纹丝不动。
 d. 明白“分支就是平行宇宙”。
+已完成√
+
