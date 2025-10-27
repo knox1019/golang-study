@@ -19,3 +19,8 @@ a. 先回到 main：git switch main
 b. git merge feature-test
 c. 如无冲突，合并成功；有冲突就按 VS Code 弹出的“Accept Incoming”等按钮解决。
 d. 合并后 git branch -d feature-test 删除已完工分支。
+已完成√
+
+标签——给重要节点打版本号
+a. 功能跑通后 git tag v0.1.0
+b. git push origin v0.1.0 → GitHub 自动生成 Release，可下载 zip。
