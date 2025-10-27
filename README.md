@@ -26,3 +26,15 @@ a. 功能跑通后 git tag v0.1.0
 b. git push origin v0.1.0 → GitHub 自动生成 Release，可下载 zip。
 已完成√
 
+差异查询——看昨天到底改了啥
+a. git diff HEAD~1 → 终端里逐行对比。
+b. VS Code 左侧“时间线”面板点两次 commit，也能可视化 diff。
+已完成√
+
+忽略文件——别让临时文件污染仓库
+a. 新建 .gitignore 写两行：
+复制
+*.exe
+*.log
+b. git add .gitignore && git commit -m "chore: 忽略可执行文件"
+把以上 6 步亲手敲一遍，你就从“网盘用户”升级到“真正在用版本控制”。
