@@ -12,3 +12,5 @@ func main() {		//start of main function
 	fmt.Printf("%v\n", n)//default format
 	fmt.Println("现在我开始随便改代码了")//Go-syntax representation
 }//end of main function
+now 现在处于一个新的时代
+
