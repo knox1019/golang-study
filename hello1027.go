@@ -10,4 +10,5 @@ func main() {		//start of main function
 	fmt.Printf("%o\n", n)//octal
 	fmt.Printf("%x\n", n)//hexadecimal
 	fmt.Printf("%v\n", n)//default format
+	fmt.Println("现在我开始随便改代码了")//Go-syntax representation
 }//end of main function
