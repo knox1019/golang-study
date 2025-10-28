@@ -1,5 +1,6 @@
 # golang-study
-为了成为初级golang工程师的自我学习star from 2025/10/27
+为了成为初级golang工程师的自我学习
+star from 2025/10/27
 时光机——回退
 a. 故意把 main.go 改烂，保存。
 b. git log --oneline 找到上一条好版本的短 ID（如 a3f1e2d）。
@@ -39,3 +40,11 @@ a. 新建 .gitignore 写两行：
 b. git add .gitignore && git commit -m "chore: 忽略可执行文件"
 把以上 6 步亲手敲一遍，你就从“网盘用户”升级到“真正在用版本控制”。
 已完成√
+
+iota是什么？
+a1 = iota // 从iota=0开始
+_ //iota=1
+a3 //iota=2
+a4 //iota=3
+
+可以利用iota定义数量级
