@@ -31,6 +31,15 @@ func traversalString() {
 
 字符串底层是一个byte数组，所以可以和[]byte类型相互转换。字符串是不能修改的 字符串是由byte字节组成，所以字符串的长度是byte字节的长度。 rune类型用来表示utf8字符，一个rune字符由一个或多个byte组成。
 
+总结：
+| 遍历方式     | 单位 | 适用场景  | 是否支持中文 |
+| ----------- | ---- | --------------- | ------ |
+| `for i++`   | byte | 字节级操作、ASCII 字符串 | ❌ 会乱码  |
+| `for range` | rune | 正确解析 Unicode 字符 | ✅ 支持中文 |
+建议：
+如果你处理的是可能包含非 ASCII 字符的字符串（如中文、emoji），始终使用 for range 按 rune 遍历，否则你会破坏字符边界，导致乱码或程序错误。
+
+
 ## 6.1 修改字符串
 要修改字符串，需要先将其转换成[]rune或[]byte，完成后再转换为string。无论哪种转换，都会重新分配内存，并复制字节数组。
 
@@ -45,4 +54,23 @@ func changeString() {
 	runeS2 := []rune(s2)
 	runeS2[0] = '红'
 	fmt.Println(string(runeS2))
+}
+
+
+# 7  类型转换
+Go语言中只有强制类型转换，没有隐式类型转换。该语法只能在两个类型之间支持相互转换的时候使用。
+
+强制类型转换的基本语法如下：
+
+T(表达式)
+其中，T表示要转换的类型。表达式包括变量、复杂算子和函数返回值等.
+
+比如计算直角三角形的斜边长时使用math包的Sqrt()函数，该函数接收的是float64类型的参数，而变量a和b都是int类型的，这个时候就需要将a和b强制类型转换为float64类型。
+
+func sqrtDemo() {
+	var a, b = 3, 4
+	var c int
+	// math.Sqrt()接收的参数是float64类型，需要强制转换
+	c = int(math.Sqrt(float64(a*a + b*b)))
+	fmt.Println(c)
 }
