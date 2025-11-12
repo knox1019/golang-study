@@ -1,9 +1,9 @@
 package main
 import "fmt"
 func main() {
-	var a int = 10
-	var b int = 20
-	var sum int
-	sum = a + b
-	fmt.Println("和是：", sum)
+	fmt.Println("和是：", cal(3, 5))
+}
+
+func cal(a int, b int) int {
+	return a + b
 }
