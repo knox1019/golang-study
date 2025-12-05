@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>自选股监控室</title>
+    <!-- 引入 Chart.js 图表库 -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: sans-serif; padding: 20px; text-align: center; }
+        #price-display { font-size: 48px; font-weight: bold; color: #d32f2f; margin: 20px 0; }
+        .controls { margin: 20px; padding: 20px; background: #f5f5f5; border-radius: 8px; }
+        .chart-container { width: 80%; margin: 0 auto; }
+    </style>
+</head>
+<body>
+
+    <h1>📈 实时股价监控</h1>
+    
+    <!-- 显示当前价格 -->
+    <div id="price-display">Loading...</div>
+
+    <!-- 控制区域 -->
+    <div class="controls">
+        <label>
+            <input type="checkbox" id="speech-toggle"> 开启语音播报
+        </label>
+        <span style="margin-left: 20px;">
+            播报间隔(秒): <input type="number" id="speech-interval" value="5" style="width: 50px;">
+        </span>
+    </div>
+
+    <!-- 图表区域 -->
+    <div class="chart-container">
+        <canvas id="stockChart"></canvas>
+    </div>
+
+    <script>
+        // --- 1. 初始化图表 ---
+        const ctx = document.getElementById('stockChart').getContext('2d');
+        const chart = new Chart(ctx, {
+            type: 'line', // 折线图
+            data: {
+                labels: [], // X轴：时间
+                datasets: [{
+                    label: '模拟股价 (MOCK)',
+                    data: [], // Y轴：价格
+                    borderColor: 'rgb(255, 99, 132)',
+                    tension: 0.1
+                }]
+            }
+        });
+
+        // --- 2. 语音播报逻辑 ---
+        let lastSpeechTime = 0; // 上次播报的时间戳
+
+        function speakPrice(price) {
+            const toggle = document.getElementById('speech-toggle').checked;
+            const interval = document.getElementById('speech-interval').value * 1000; // 转毫秒
+            const now = Date.now();
+
+            if (toggle && (now - lastSpeechTime > interval)) {
+                // 调用浏览器自带的语音合成
+                const msg = new SpeechSynthesisUtterance(`当前价格 ${price.toFixed(2)}`);
+                window.speechSynthesis.speak(msg);
+                lastSpeechTime = now;
+            }
+        }
+
+        // --- 3. 定时拉取数据 (AJAX) ---
+        function fetchPrice() {
+            fetch('/api/price')
+                .then(response => response.json())
+                .then(data => {
+                    // 更新大字显示
+                    const priceFixed = data.price.toFixed(2);
+                    document.getElementById('price-display').innerText = priceFixed;
+
+                    // 更新图表
+                    if (chart.data.labels.length > 20) { // 只保留最近20个点
+                        chart.data.labels.shift();
+                        chart.data.datasets[0].data.shift();
+                    }
+                    chart.data.labels.push(data.time);
+                    chart.data.datasets[0].data.push(data.price);
+                    chart.update();
+
+                    // 尝试播报
+                    speakPrice(data.price);
+                });
+        }
+
+        // 每 1 秒向 Go 后端请求一次数据
+        setInterval(fetchPrice, 1000);
+    </script>
+</body>
+</html>
