@@ -1,0 +1,11 @@
+{
+    "stocks": [
+        {"name": "贵州茅台", "code": "600519", "market": "sh"},
+        {"name": "宁德时代", "code": "300750", "market": "sz"},
+        {"name": "招商银行", "code": "600036", "market": "sh"},
+        {"name": "中国平安", "code": "601318", "market": "sh"},
+        {"name": "腾讯控股", "code": "00700", "market": "hk"}
+    ],
+    "refresh_interval": 10,
+    "web_port": 8080
+}

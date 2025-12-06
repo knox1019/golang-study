@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>股票实时行情展示系统</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1><i class="fas fa-chart-line"></i> 股票实时行情展示系统</h1>
+            <div class="header-info">
+                <div class="update-time">
+                    最后更新: <span id="updateTime">{{.Now | formatTime}}</span>
+                </div>
+                <div class="controls">
+                    <button id="toggleSound" class="btn sound-btn">
+                        <i class="fas fa-volume-up"></i> 播报: <span>开启</span>
+                    </button>
+                    <button id="refreshBtn" class="btn">
+                        <i class="fas fa-sync-alt"></i> 刷新
+                    </button>
+                    <select id="refreshInterval" class="select">
+                        <option value="5">5秒刷新</option>
+                        <option value="10" selected>10秒刷新</option>
+                        <option value="30">30秒刷新</option>
+                        <option value="60">60秒刷新</option>
+                    </select>
+                </div>
+            </div>
+        </header>
+
+        <main>
+            <div class="stock-grid">
+                {{range .Stocks}}
+                <div class="stock-card {{getColorClass .Change}}">
+                    <div class="stock-header">
+                        <h3 class="stock-name">{{.Name}}</h3>
+                        <span class="stock-code">{{.Code}}.{{.Market | upper}}</span>
+                    </div>
+                    
+                    <div class="stock-price">
+                        <div class="price-main">{{formatPrice .LatestPrice}}</div>
+                        <div class="price-change">
+                            <span class="change-amount">{{formatChange .Change}}</span>
+                            <span class="change-percent">{{formatChangePct .ChangePct}}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="stock-footer">
+                        <div class="stock-meta">
+                            <div class="meta-item">
+                                <span class="meta-label">更新时间:</span>
+                                <span class="meta-value">{{.Timestamp | formatTimestamp}}</span>
+                            </div>
+                        </div>
+                        <div class="stock-actions">
+                            <button class="action-btn detail-btn" data-code="{{.Code}}" data-market="{{.Market}}">
+                                <i class="fas fa-chart-bar"></i> 详情
+                            </button>
+                            <button class="action-btn announce-btn" data-name="{{.Name}}" data-price="{{.LatestPrice}}" data-change="{{.ChangePct}}">
+                                <i class="fas fa-bullhorn"></i> 播报
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                {{else}}
+                <div class="no-data">
+                    <i class="fas fa-chart-bar fa-3x"></i>
+                    <p>暂无股票数据，请稍后刷新</p>
+                </div>
+                {{end}}
+            </div>
+            
+            <div class="dashboard">
+                <div class="dashboard-card">
+                    <h3><i class="fas fa-broadcast-tower"></i> 实时数据流</h3>
+                    <div class="connection-status">
+                        <span class="status-indicator connected"></span>
+                        <span id="connectionStatus">已连接到服务器</span>
+                    </div>
+                    <div class="update-counter">
+                        已更新: <span id="updateCount">0</span> 次
+                    </div>
+                </div>
+                
+                <div class="dashboard-card">
+                    <h3><i class="fas fa-info-circle"></i> 系统信息</h3>
+                    <div class="system-info">
+                        <p>刷新间隔: <span id="currentInterval">{{.Config.RefreshInterval}}</span> 秒</p>
+                        <p>监控股票: <span id="stockCount">{{len .Stocks}}</span> 只</p>
+                        <p>数据源: 东方财富实时API</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <footer class="footer">
+            <p>股票实时行情系统 &copy; 2024 - 数据仅供参考，投资有风险</p>
+            <p class="timestamp">服务器时间: <span id="serverTime">{{.Now | formatTime}}</span></p>
+        </footer>
+    </div>
+
+    <!-- 语音播报模态框 -->
+    <div id="announceModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2><i class="fas fa-bullhorn"></i> 语音播报</h2>
+                <button class="close-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="announce-preview">
+                    <p id="announceText">准备播报...</p>
+                </div>
+                <div class="announce-controls">
+                    <button id="playAnnounce" class="btn btn-primary">
+                        <i class="fas fa-play"></i> 播放
+                    </button>
+                    <button id="stopAnnounce" class="btn btn-secondary">
+                        <i class="fas fa-stop"></i> 停止
+                    </button>
+                    <div class="volume-control">
+                        <label for="volume">音量:</label>
+                        <input type="range" id="volume" min="0" max="1" step="0.1" value="0.7">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 股票详情模态框 -->
+    <div id="detailModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2><i class="fas fa-chart-bar"></i> 股票详情</h2>
+                <button class="close-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="detailContent">
+                    <!-- 详情内容将通过JavaScript动态加载 -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/main.js"></script>
+</body>
+</html>
