@@ -8,11 +8,9 @@ import (
     "log"
     "net/http"
     "os"
-    "strconv"
-    "strings"
     "sync"
     "time"
-
+	"strings"
     "github.com/gin-gonic/gin"
     "github.com/gorilla/websocket"
 )
@@ -27,6 +25,8 @@ type StockData struct {
     MainNetInflow float64 `json:"main_net_inflow"`
     Market       string  `json:"market"`
     Timestamp    int64   `json:"timestamp"`
+    Volume       int64   `json:"volume"`      // 成交量
+    Turnover     float64 `json:"turnover"`    // 成交额
 }
 
 // 东方财富API响应结构
@@ -37,6 +37,8 @@ type EastMoneyRealtimeResp struct {
         F58  string  `json:"f58"`  // 股票名称
         F169 float64 `json:"f169"` // 涨跌幅
         F170 float64 `json:"f170"` // 涨跌额
+        F47  float64 `json:"f47"`  // 成交量 (手)
+        F48  float64 `json:"f48"`  // 成交额 (元)
     } `json:"data"`
     Rc  int    `json:"rc"`
     Msg string `json:"msg"`
@@ -72,7 +74,7 @@ func main() {
     
     // 初始化Gin
     if config.WebPort == 0 {
-        config.WebPort = 8080
+        config.WebPort = 9090
     }
     
     gin.SetMode(gin.ReleaseMode)
@@ -101,6 +103,22 @@ func main() {
             }
             return fmt.Sprintf("%.2f万", inflow)
         },
+        "formatVolume": func(volume int64) string {
+            if volume >= 100000000 {
+                return fmt.Sprintf("%.2f亿手", float64(volume)/100000000)
+            } else if volume >= 10000 {
+                return fmt.Sprintf("%.2f万手", float64(volume)/10000)
+            }
+            return fmt.Sprintf("%d手", volume)
+        },
+        "formatTurnover": func(turnover float64) string {
+            if turnover >= 100000000 {
+                return fmt.Sprintf("%.2f亿元", turnover/100000000)
+            } else if turnover >= 10000 {
+                return fmt.Sprintf("%.2f万元", turnover/10000)
+            }
+            return fmt.Sprintf("%.2f元", turnover)
+        },
         "getColorClass": func(change float64) string {
             if change > 0 {
                 return "positive"
@@ -108,6 +126,15 @@ func main() {
                 return "negative"
             }
             return "neutral"
+        },
+        "formatTime": func(t time.Time) string {
+            return t.Format("2006-01-02 15:04:05")
+        },
+        "formatTimestamp": func(ts int64) string {
+            return time.Unix(ts, 0).Format("15:04:05")
+        },
+        "upper": func(s string) string {
+            return strings.ToUpper(s)
         },
     })
     
@@ -129,6 +156,7 @@ func main() {
         c.HTML(http.StatusOK, "index.html", gin.H{
             "Stocks": stocks,
             "Config": config,
+            "Now":    time.Now(),
         })
     })
     
@@ -162,7 +190,7 @@ func loadConfig() {
             {"中国平安", "601318", "sh"},
         },
         RefreshInterval: 10,
-        WebPort:         8080,
+        WebPort:         9090,
     }
     
     // 尝试从配置文件加载
@@ -224,7 +252,7 @@ func getStockQuote(market, code string) (StockData, error) {
     
     q := req.URL.Query()
     q.Add("secid", secid)
-    q.Add("fields", "f43,f57,f58,f169,f170")
+    q.Add("fields", "f43,f57,f58,f169,f170,f47,f48")
     q.Add("ut", "fa5fd1943c7b386f172d6893dbfba10b")
     q.Add("fltt", "2")
     q.Add("invt", "2")
@@ -254,6 +282,10 @@ func getStockQuote(market, code string) (StockData, error) {
         return StockData{}, fmt.Errorf("API错误: %s", apiResp.Msg)
     }
     
+    // 计算成交量和成交额
+    volume := int64(apiResp.Data.F47) // 成交量 (手)
+    turnover := apiResp.Data.F48 // 成交额 (元)
+    
     return StockData{
         Code:        code,
         Name:        apiResp.Data.F58,
@@ -262,6 +294,8 @@ func getStockQuote(market, code string) (StockData, error) {
         ChangePct:   apiResp.Data.F169,
         Market:      market,
         Timestamp:   time.Now().Unix(),
+        Volume:      volume,
+        Turnover:    turnover,
     }, nil
 }
 
