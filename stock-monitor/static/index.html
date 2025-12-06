@@ -1,0 +1,812 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>股票价格监控系统</title>
+  <!-- 引入外部资源 -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
+  
+  <!-- Tailwind 配置 -->
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: '#165DFF',
+            secondary: '#36CFFB',
+            success: '#00B42A',
+            danger: '#F53F3F',
+            warning: '#FF7D00',
+            dark: '#1D2129',
+            'dark-2': '#4E5969',
+            'light-1': '#F2F3F5',
+            'light-2': '#E5E6EB'
+          },
+          fontFamily: {
+            inter: ['Inter', 'system-ui', 'sans-serif'],
+          },
+        },
+      }
+    }
+  </script>
+  
+  <!-- 自定义工具类 -->
+  <style type="text/tailwindcss">
+    @layer utilities {
+      .content-auto {
+        content-visibility: auto;
+      }
+      .text-shadow {
+        text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      }
+      .card-hover {
+        @apply transition-all duration-300 hover:shadow-lg hover:-translate-y-1;
+      }
+      .btn-primary {
+        @apply bg-primary text-white px-4 py-2 rounded-lg shadow-md hover:bg-primary/90 transition-all duration-300 active:scale-95;
+      }
+      .btn-secondary {
+        @apply bg-white text-primary border border-primary px-4 py-2 rounded-lg shadow-md hover:bg-light-1 transition-all duration-300 active:scale-95;
+      }
+    }
+  </style>
+  
+  <style>
+    /* 基础样式 */
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      scroll-behavior: smooth;
+    }
+    
+    /* 动画效果 */
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    
+    .animate-pulse-slow {
+      animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+    
+    /* 自定义滚动条 */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    
+    ::-webkit-scrollbar-track {
+      background: #f1f1f1;
+      border-radius: 3px;
+    }
+    
+    ::-webkit-scrollbar-thumb {
+      background: #c1c1c1;
+      border-radius: 3px;
+    }
+    
+    ::-webkit-scrollbar-thumb:hover {
+      background: #a1a1a1;
+    }
+    
+    /* 数字变化动画 */
+    .number-change {
+      transition: all 0.5s ease;
+    }
+    
+    /* 加载动画 */
+    .loader {
+      width: 16px;
+      height: 16px;
+      border: 2px solid #fff;
+      border-bottom-color: transparent;
+      border-radius: 50%;
+      animation: rotation 1s linear infinite;
+    }
+    
+    @keyframes rotation {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+
+<body class="bg-gray-50 text-dark min-h-screen flex flex-col">
+  <!-- 顶部导航栏 -->
+  <header class="bg-white shadow-sm sticky top-0 z-50 transition-all duration-300" id="navbar">
+    <div class="container mx-auto px-4 py-3 flex items-center justify-between">
+      <div class="flex items-center space-x-2">
+        <i class="fa fa-line-chart text-primary text-2xl"></i>
+        <h1 class="text-xl md:text-2xl font-bold text-dark">股票<span class="text-primary">监控</span>系统</h1>
+      </div>
+      
+      <div class="flex items-center space-x-4">
+        <button class="hidden md:flex items-center space-x-1 text-dark-2 hover:text-primary transition-colors">
+          <i class="fa fa-bell-o"></i>
+          <span>通知</span>
+        </button>
+        <button class="hidden md:flex items-center space-x-1 text-dark-2 hover:text-primary transition-colors">
+          <i class="fa fa-cog"></i>
+          <span>设置</span>
+        </button>
+        <div class="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+          <i class="fa fa-user"></i>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- 主内容区 -->
+  <main class="flex-grow container mx-auto px-4 py-6">
+    <!-- 股票选择栏 -->
+    <div class="bg-white rounded-xl shadow-sm p-4 mb-6">
+      <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div class="flex items-center space-x-3 w-full md:w-auto">
+          <label for="stock-select" class="text-dark-2 font-medium">选择股票:</label>
+          <div class="relative flex-grow md:flex-grow-0">
+            <select id="stock-select" class="w-full md:w-64 bg-light-1 border border-light-2 rounded-lg px-3 py-2 appearance-none focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all">
+              <option value="sh000001" data-name="上证指数" data-price="3124.63" data-change="+0.32%">sh000001 - 上证指数</option>
+              <option value="sz399001" data-name="深证成指" data-price="10130.45" data-change="-0.18%">sz399001 - 深证成指</option>
+              <option value="sz399006" data-name="创业板指" data-price="2065.82" data-change="+1.25%">sz399006 - 创业板指</option>
+              <option value="600036" data-name="招商银行" data-price="32.56" data-change="-0.58%">600036 - 招商银行</option>
+              <option value="000858" data-name="五粮液" data-price="148.32" data-change="+2.13%">000858 - 五粮液</option>
+              <option value="601899" data-name="紫金矿业" data-price="10.25" data-change="+0.78%">601899 - 紫金矿业</option>
+            </select>
+            <div class="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+              <i class="fa fa-chevron-down text-dark-2 text-xs"></i>
+            </div>
+          </div>
+        </div>
+        
+        <div class="flex flex-wrap items-center gap-3 w-full md:w-auto">
+          <button id="refresh-btn" class="btn-secondary flex items-center space-x-1">
+            <i class="fa fa-refresh"></i>
+            <span>刷新</span>
+          </button>
+          <button id="add-stock-btn" class="btn-primary flex items-center space-x-1">
+            <i class="fa fa-plus"></i>
+            <span>添加自选</span>
+          </button>
+        </div>
+      </div>
+    </div>
+    
+    <!-- 股票概览卡片 -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+      <!-- 价格卡片 -->
+      <div class="lg:col-span-1 bg-white rounded-xl shadow-sm p-6 card-hover">
+        <div class="flex justify-between items-start mb-4">
+          <div>
+            <h2 class="text-dark-2 text-sm font-medium">当前价格</h2>
+            <div class="mt-1 flex items-end">
+              <span id="current-price" class="text-3xl md:text-4xl font-bold number-change">3124.63</span>
+              <span class="text-dark-2 text-sm ml-1 mb-1">点</span>
+            </div>
+          </div>
+          <div id="price-change" class="px-3 py-1 rounded-full text-sm font-medium bg-success/10 text-success">
+            +0.32%
+          </div>
+        </div>
+        
+        <div class="flex justify-between text-sm">
+          <div class="flex flex-col">
+            <span class="text-dark-2">今开</span>
+            <span id="open-price" class="font-medium">3118.25</span>
+          </div>
+          <div class="flex flex-col">
+            <span class="text-dark-2">最高</span>
+            <span id="high-price" class="font-medium text-success">3132.86</span>
+          </div>
+          <div class="flex flex-col">
+            <span class="text-dark-2">最低</span>
+            <span id="low-price" class="font-medium text-danger">3112.48</span>
+          </div>
+          <div class="flex flex-col">
+            <span class="text-dark-2">昨收</span>
+            <span id="prev-price" class="font-medium">3114.98</span>
+          </div>
+        </div>
+        
+        <div class="mt-6 pt-4 border-t border-light-2 flex justify-between items-center">
+          <span class="text-dark-2 text-sm">数据更新于</span>
+          <span id="update-time" class="text-sm font-medium">14:32:45</span>
+        </div>
+      </div>
+      
+      <!-- 播报设置卡片 -->
+      <div class="lg:col-span-2 bg-white rounded-xl shadow-sm p-6 card-hover">
+        <h2 class="text-lg font-bold mb-4 flex items-center">
+          <i class="fa fa-volume-up text-primary mr-2"></i>
+          价格播报设置
+        </h2>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <div class="flex items-center mb-4">
+              <label class="relative inline-flex items-center cursor-pointer">
+                <input type="checkbox" id="broadcast-toggle" class="sr-only peer" checked>
+                <div class="w-11 h-6 bg-light-2 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+              </label>
+              <span class="ml-2 text-dark-2 font-medium">启用自动播报</span>
+            </div>
+            
+            <div class="space-y-3">
+              <div>
+                <label for="broadcast-interval" class="block text-dark-2 text-sm font-medium mb-1">播报间隔</label>
+                <div class="relative">
+                  <input type="number" id="broadcast-interval" min="10" max="300" step="10" value="60" 
+                    class="w-full bg-light-1 border border-light-2 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all">
+                  <span class="absolute right-3 top-1/2 -translate-y-1/2 text-dark-2">秒</span>
+                </div>
+              </div>
+              
+              <div>
+                <label for="broadcast-voice" class="block text-dark-2 text-sm font-medium mb-1">播报语音</label>
+                <select id="broadcast-voice" class="w-full bg-light-1 border border-light-2 rounded-lg px-3 py-2 appearance-none focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all">
+                  <option value="female">中文女声</option>
+                  <option value="male">中文男声</option>
+                  <option value="english-female">英文女声</option>
+                  <option value="english-male">英文男声</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          
+          <div class="flex flex-col justify-between">
+            <div>
+              <h3 class="text-dark font-medium mb-2">播报内容设置</h3>
+              <div class="space-y-2">
+                <label class="flex items-center">
+                  <input type="checkbox" class="form-checkbox text-primary rounded h-4 w-4" checked>
+                  <span class="ml-2 text-dark-2 text-sm">股票名称</span>
+                </label>
+                <label class="flex items-center">
+                  <input type="checkbox" class="form-checkbox text-primary rounded h-4 w-4" checked>
+                  <span class="ml-2 text-dark-2 text-sm">当前价格</span>
+                </label>
+                <label class="flex items-center">
+                  <input type="checkbox" class="form-checkbox text-primary rounded h-4 w-4" checked>
+                  <span class="ml-2 text-dark-2 text-sm">涨跌幅</span>
+                </label>
+                <label class="flex items-center">
+                  <input type="checkbox" class="form-checkbox text-primary rounded h-4 w-4">
+                  <span class="ml-2 text-dark-2 text-sm">最高/最低</span>
+                </label>
+              </div>
+            </div>
+            
+            <div class="mt-4">
+              <button id="test-broadcast" class="btn-primary w-full">
+                测试播报
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- 分时图区域 -->
+    <div class="bg-white rounded-xl shadow-sm p-6 mb-6 card-hover">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-lg font-bold flex items-center">
+          <i class="fa fa-area-chart text-primary mr-2"></i>
+          分时走势图
+        </h2>
+        <div class="flex space-x-2">
+          <button class="chart-period-btn px-3 py-1 text-sm rounded-md bg-primary text-white">今日</button>
+          <button class="chart-period-btn px-3 py-1 text-sm rounded-md text-dark-2 hover:bg-light-1 transition-colors">5日</button>
+          <button class="chart-period-btn px-3 py-1 text-sm rounded-md text-dark-2 hover:bg-light-1 transition-colors">10日</button>
+        </div>
+      </div>
+      
+      <div class="h-[300px] md:h-[400px]">
+        <canvas id="time-share-chart"></canvas>
+      </div>
+      
+      <div class="mt-4 grid grid-cols-4 gap-2 text-sm">
+        <div class="flex flex-col items-center">
+          <span class="text-dark-2">成交量</span>
+          <span id="volume" class="font-medium">2.86亿手</span>
+        </div>
+        <div class="flex flex-col items-center">
+          <span class="text-dark-2">成交额</span>
+          <span id="amount" class="font-medium">3287亿元</span>
+        </div>
+        <div class="flex flex-col items-center">
+          <span class="text-dark-2">换手率</span>
+          <span id="turnover" class="font-medium">0.85%</span>
+        </div>
+        <div class="flex flex-col items-center">
+          <span class="text-dark-2">量比</span>
+          <span id="volume-ratio" class="font-medium">1.03</span>
+        </div>
+      </div>
+    </div>
+    
+    <!-- 最近成交明细 -->
+    <div class="bg-white rounded-xl shadow-sm p-6 card-hover">
+      <h2 class="text-lg font-bold mb-4 flex items-center">
+        <i class="fa fa-list-alt text-primary mr-2"></i>
+        最近成交明细
+      </h2>
+      
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="border-b border-light-2">
+              <th class="text-left py-3 text-dark-2 font-medium">时间</th>
+              <th class="text-right py-3 text-dark-2 font-medium">价格</th>
+              <th class="text-right py-3 text-dark-2 font-medium">涨跌</th>
+              <th class="text-right py-3 text-dark-2 font-medium">成交量</th>
+              <th class="text-right py-3 text-dark-2 font-medium">成交额</th>
+            </tr>
+          </thead>
+          <tbody id="trade-details">
+            <!-- 交易数据将通过JS动态生成 -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+
+  <!-- 页脚 -->
+  <footer class="bg-white border-t border-light-2 py-6 mt-8">
+    <div class="container mx-auto px-4">
+      <div class="flex flex-col md:flex-row justify-between items-center">
+        <div class="text-dark-2 text-sm mb-4 md:mb-0">
+          © 2025 股票监控系统 - 数据仅供参考，不构成投资建议
+        </div>
+        <div class="flex space-x-6">
+          <a href="#" class="text-dark-2 hover:text-primary transition-colors">
+            <i class="fa fa-question-circle"></i>
+            <span class="ml-1 text-sm">帮助中心</span>
+          </a>
+          <a href="#" class="text-dark-2 hover:text-primary transition-colors">
+            <i class="fa fa-shield"></i>
+            <span class="ml-1 text-sm">隐私政策</span>
+          </a>
+          <a href="#" class="text-dark-2 hover:text-primary transition-colors">
+            <i class="fa fa-file-text-o"></i>
+            <span class="ml-1 text-sm">服务条款</span>
+          </a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- 播报通知 Toast -->
+  <div id="broadcast-toast" class="fixed bottom-6 right-6 bg-dark/80 text-white px-4 py-3 rounded-lg shadow-lg transform translate-y-20 opacity-0 transition-all duration-300 flex items-center space-x-3 z-50">
+    <i class="fa fa-volume-up text-secondary text-xl"></i>
+    <div>
+      <div class="font-medium">价格播报</div>
+      <div id="toast-message" class="text-sm opacity-90">上证指数 当前价格 3124.63点，上涨0.32%</div>
+    </div>
+    <button class="ml-4 text-white/70 hover:text-white">
+      <i class="fa fa-times"></i>
+    </button>
+  </div>
+
+  <script>
+   // 全局变量
+let timeShareChart = null;
+let broadcastInterval = null;
+
+// DOM 加载完成后初始化
+document.addEventListener('DOMContentLoaded', function() {
+  // 初始化分时图（用默认数据占位）
+  initTimeShareChart(3124.63);
+  
+  // 初始化交易明细（空数据占位）
+  initTradeDetails([]);
+  
+  // 初始化事件监听
+  initEventListeners();
+  
+  // 页面加载时获取一次数据（默认上证指数）
+  fetchStockData('sh000001');
+  
+  // 启动自动刷新（5秒一次）
+  setInterval(() => {
+    const selectedCode = document.getElementById('stock-select').value;
+    fetchStockData(selectedCode);
+  }, 5000);
+  
+  // 启动自动播报
+  startBroadcast();
+});
+
+// 从后端 API 获取股票数据
+function fetchStockData(stockCode) {
+  // 显示加载状态
+  const refreshBtn = document.getElementById('refresh-btn');
+  const refreshIcon = refreshBtn.querySelector('i');
+  refreshIcon.classList.add('animate-spin');
+  
+  fetch(`/api/stock?code=${stockCode}`)
+    .then(response => {
+      if (!response.ok) {
+        throw new Error('数据获取失败');
+      }
+      return response.json();
+    })
+    .then(data => {
+      if (data.success) {
+        const stock = data.data;
+        // 更新所有 UI 数据
+        updateStockUI(stock);
+        // 更新分时图
+        updateTimeShareChart(stock.price);
+        // 更新交易明细（模拟生成，实际可从后端返回）
+        initTradeDetails(generateMockTradeDetails(stock.price));
+      }
+    })
+    .catch(error => {
+      console.error('获取股票数据失败：', error);
+      alert('数据加载失败，请重试');
+    })
+    .finally(() => {
+      // 移除加载状态
+      refreshIcon.classList.remove('animate-spin');
+    });
+}
+
+// 更新股票核心 UI 数据
+function updateStockUI(stock) {
+  // 更新价格
+  const priceElement = document.getElementById('current-price');
+  priceElement.textContent = stock.price.toFixed(2);
+  
+  // 更新涨跌幅
+  const changeElement = document.getElementById('price-change');
+  const isRise = stock.change >= 0;
+  changeElement.textContent = `${isRise ? '+' : ''}${stock.change.toFixed(2)}%`;
+  changeElement.className = `px-3 py-1 rounded-full text-sm font-medium ${isRise ? 'bg-success/10 text-success' : 'bg-danger/10 text-danger'}`;
+  
+  // 添加数字变化动画
+  priceElement.classList.add(isRise ? 'text-success' : 'text-danger');
+  setTimeout(() => {
+    priceElement.classList.remove(isRise ? 'text-success' : 'text-danger');
+  }, 500);
+  
+  // 更新其他关键数据
+  // 更新其他关键数据
+ document.getElementById('open-price').textContent = stock.open.toFixed(2);
+ document.getElementById('high-price').textContent = stock.high.toFixed(2);
+ document.getElementById('low-price').textContent = stock.low.toFixed(2);
+ document.getElementById('prev-price').textContent = stock.prev_close.toFixed(2); // 直接使用后端返回的昨收价
+ document.getElementById('update-time').textContent = stock.update_at;
+  
+  // 更新底部统计数据（模拟，实际可从后端返回）
+  document.getElementById('volume').textContent = (Math.random() * 3 + 1).toFixed(2) + '亿手';
+  document.getElementById('amount').textContent = (Math.random() * 2000 + 1000).toFixed(0) + '亿元';
+  document.getElementById('turnover').textContent = (Math.random() * 0.5 + 0.3).toFixed(2) + '%';
+  document.getElementById('volume-ratio').textContent = (Math.random() * 0.5 + 0.8).toFixed(2);
+}
+
+// 初始化分时图
+function initTimeShareChart(basePrice) {
+  const ctx = document.getElementById('time-share-chart').getContext('2d');
+  
+  // 生成时间标签（9:30-15:00）
+  const timeLabels = generateTimeLabels();
+  // 生成初始价格数据
+  const priceData = generatePriceData(basePrice);
+  const avgPriceData = generateAvgPriceData(basePrice);
+  
+  // 创建图表
+  timeShareChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: timeLabels,
+      datasets: [
+        {
+          label: '价格',
+          data: priceData,
+          borderColor: '#165DFF',
+          backgroundColor: 'rgba(22, 93, 255, 0.1)',
+          borderWidth: 2,
+          pointRadius: 0,
+          tension: 0.2,
+          fill: true
+        },
+        {
+          label: '均价',
+          data: avgPriceData,
+          borderColor: '#FF7D00',
+          borderWidth: 1,
+          pointRadius: 0,
+          tension: 0.2,
+          fill: false
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: {
+        mode: 'index',
+        intersect: false,
+      },
+      plugins: {
+        legend: {
+          display: false
+        },
+        tooltip: {
+          backgroundColor: 'rgba(0, 0, 0, 0.7)',
+          padding: 10,
+          cornerRadius: 6,
+          displayColors: false,
+          callbacks: {
+            label: function(context) {
+              const datasetLabel = context.dataset.label || '';
+              return `${datasetLabel}: ${context.parsed.y.toFixed(2)}`;
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          grid: {
+            display: false
+          },
+          ticks: {
+            maxRotation: 0,
+            autoSkip: true,
+            maxTicksLimit: 8
+          }
+        },
+        y: {
+          position: 'right',
+          grid: {
+            color: 'rgba(0, 0, 0, 0.05)'
+          },
+          ticks: {
+            callback: function(value) {
+              return value.toFixed(2);
+            }
+          }
+        }
+      }
+    }
+  });
+}
+
+// 更新分时图数据
+function updateTimeShareChart(price) {
+  if (timeShareChart) {
+    timeShareChart.data.datasets[0].data = generatePriceData(price);
+    timeShareChart.data.datasets[1].data = generateAvgPriceData(price);
+    timeShareChart.update();
+  }
+}
+
+// 生成时间标签（9:30-15:00，每10分钟一个点）
+function generateTimeLabels() {
+  const labels = [];
+  let hour = 9;
+  let minute = 30;
+  
+  while (hour < 15 || (hour === 15 && minute === 0)) {
+    labels.push(`${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`);
+    
+    minute += 10;
+    if (minute >= 60) {
+      minute = 0;
+      hour += 1;
+      
+      // 跳过午休时间（11:30-13:00）
+      if (hour === 11 && minute === 0) {
+        hour = 13;
+      }
+    }
+  }
+  
+  return labels;
+}
+
+// 生成价格数据（基于当前价格波动）
+function generatePriceData(basePrice) {
+  const data = [];
+  let price = basePrice;
+  
+  for (let i = 0; i < 39; i++) {
+    // 随机波动，控制在合理范围内（±0.5%）
+    const change = (Math.random() - 0.48) * basePrice * 0.005;
+    price = Math.max(basePrice * 0.995, Math.min(basePrice * 1.005, price + change));
+    data.push(price);
+  }
+  
+  return data;
+}
+
+// 生成均价数据
+function generateAvgPriceData(basePrice) {
+  const data = [];
+  let price = basePrice * (0.998 + Math.random() * 0.004);
+  
+  for (let i = 0; i < 39; i++) {
+    const change = (Math.random() - 0.5) * basePrice * 0.002;
+    price = Math.max(basePrice * 0.997, Math.min(basePrice * 1.003, price + change));
+    data.push(price);
+  }
+  
+  return data;
+}
+
+// 初始化交易明细
+function initTradeDetails(details) {
+  const tableBody = document.getElementById('trade-details');
+  tableBody.innerHTML = '';
+  
+  if (details.length === 0) {
+    // 无数据时显示占位
+    const row = document.createElement('tr');
+    row.innerHTML = `<td colspan="5" class="py-3 text-center text-dark-2">暂无交易数据</td>`;
+    tableBody.appendChild(row);
+    return;
+  }
+  
+  // 渲染交易明细
+  details.forEach(detail => {
+    const row = document.createElement('tr');
+    row.className = 'border-b border-light-2 last:border-0 hover:bg-light-1/50 transition-colors';
+    row.innerHTML = `
+      <td class="py-3 text-dark-2">${detail.time}</td>
+      <td class="py-3 text-right font-medium">${detail.price}</td>
+      <td class="py-3 text-right ${detail.isRise ? 'text-success' : 'text-danger'}">${detail.isRise ? '+' : ''}${detail.change}</td>
+      <td class="py-3 text-right text-dark-2">${detail.volume}</td>
+      <td class="py-3 text-right text-dark-2">${detail.amount}</td>
+    `;
+    tableBody.appendChild(row);
+  });
+}
+
+// 模拟生成交易明细（实际项目中从后端获取）
+function generateMockTradeDetails(basePrice) {
+  const details = [];
+  const now = new Date();
+  
+  for (let i = 9; i >= 0; i--) {
+    const time = new Date(now - i * 30000); // 每30秒一条记录
+    const timeStr = `${time.getHours().toString().padStart(2, '0')}:${time.getMinutes().toString().padStart(2, '0')}:${time.getSeconds().toString().padStart(2, '0')}`;
+    
+    // 基于当前价格生成波动
+    const change = (Math.random() - 0.5) * 0.2;
+    const price = (basePrice + change).toFixed(2);
+    const isRise = change >= 0;
+    const volume = Math.floor(Math.random() * 500 + 100) + '手';
+    const amount = (Math.floor(Math.random() * 500000 + 100000)).toLocaleString() + '元';
+    
+    details.push({
+      time: timeStr,
+      price: price,
+      change: change.toFixed(2),
+      isRise: isRise,
+      volume: volume,
+      amount: amount
+    });
+  }
+  
+  return details;
+}
+
+// 初始化事件监听
+function initEventListeners() {
+  // 股票选择变化时，重新获取数据
+  document.getElementById('stock-select').addEventListener('change', function() {
+    const selectedCode = this.value;
+    fetchStockData(selectedCode);
+  });
+  
+  // 刷新按钮点击事件
+  document.getElementById('refresh-btn').addEventListener('click', function() {
+    const selectedCode = document.getElementById('stock-select').value;
+    fetchStockData(selectedCode);
+  });
+  
+  // 测试播报按钮
+  document.getElementById('test-broadcast').addEventListener('click', function() {
+    const stockName = document.getElementById('stock-select').options[document.getElementById('stock-select').selectedIndex].dataset.name;
+    const price = document.getElementById('current-price').textContent;
+    const change = document.getElementById('price-change').textContent;
+    broadcastStockPrice(stockName, price, change);
+  });
+  
+  // 播报开关
+  document.getElementById('broadcast-toggle').addEventListener('change', function() {
+    if (this.checked) {
+      startBroadcast();
+    } else {
+      stopBroadcast();
+    }
+  });
+  
+  // 播报间隔变化
+  document.getElementById('broadcast-interval').addEventListener('change', function() {
+    if (document.getElementById('broadcast-toggle').checked) {
+      stopBroadcast();
+      startBroadcast();
+    }
+  });
+  
+  // 导航栏滚动效果
+  window.addEventListener('scroll', function() {
+    const navbar = document.getElementById('navbar');
+    if (window.scrollY > 10) {
+      navbar.classList.add('py-2', 'shadow');
+      navbar.classList.remove('py-3', 'shadow-sm');
+    } else {
+      navbar.classList.add('py-3', 'shadow-sm');
+      navbar.classList.remove('py-2', 'shadow');
+    }
+  });
+}
+
+// 启动自动播报
+function startBroadcast() {
+  stopBroadcast(); // 先停止现有播报
+  
+  const interval = parseInt(document.getElementById('broadcast-interval').value) * 1000;
+  
+  broadcastInterval = setInterval(() => {
+    const stockSelect = document.getElementById('stock-select');
+    const stockName = stockSelect.options[stockSelect.selectedIndex].dataset.name;
+    const price = document.getElementById('current-price').textContent;
+    const change = document.getElementById('price-change').textContent;
+    broadcastStockPrice(stockName, price, change);
+  }, interval);
+}
+
+// 停止自动播报
+function stopBroadcast() {
+  if (broadcastInterval) {
+    clearInterval(broadcastInterval);
+    broadcastInterval = null;
+  }
+}
+
+// 播报股票价格
+function broadcastStockPrice(stockName, price, change) {
+  // 显示通知
+  const toast = document.getElementById('broadcast-toast');
+  const messageElement = document.getElementById('toast-message');
+  
+  // 构建播报消息
+  const message = `${stockName} 当前价格 ${price}点，${change}`;
+  messageElement.textContent = message;
+  
+  // 显示toast
+  toast.classList.remove('translate-y-20', 'opacity-0');
+  toast.classList.add('translate-y-0', 'opacity-100');
+  
+  // 3秒后隐藏
+  setTimeout(() => {
+    toast.classList.remove('translate-y-0', 'opacity-100');
+    toast.classList.add('translate-y-20', 'opacity-0');
+  }, 3000);
+  
+  // 语音播报
+  if ('speechSynthesis' in window) {
+    const speech = new SpeechSynthesisUtterance();
+    speech.text = message;
+    speech.lang = 'zh-CN';
+    speech.volume = 1;
+    speech.rate = 1;
+    speech.pitch = 1;
+    
+    // 根据选择的语音调整
+    const voiceType = document.getElementById('broadcast-voice').value;
+    if (voiceType.includes('english')) {
+      speech.lang = 'en-US';
+      const isRise = change.startsWith('+');
+      speech.text = `${stockName} current price ${price}, ${isRise ? 'up' : 'down'} ${change.replace(/[\+\%]/g, '')} percent`;
+    }
+    
+    window.speechSynthesis.speak(speech);
+  }
+}
+  </script>
+</body>
+</html>

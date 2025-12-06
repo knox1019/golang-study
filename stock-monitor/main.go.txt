@@ -1,0 +1,88 @@
+package main
+
+import (
+	"net/http"
+	"time"
+	"net/http"
+	"io/ioutil"
+	"strings"
+	"strconv"
+	"github.com/gin-gonic/gin"
+)
+
+// 股票数据结构体
+type StockData struct {
+	Code     string  `json:"code"`     // 股票代码
+	Name     string  `json:"name"`     // 股票名称
+	Price    float64 `json:"price"`    // 当前价格
+	Change   float64 `json:"change"`   // 涨跌幅(%)
+	Open     float64 `json:"open"`     // 今开
+	High     float64 `json:"high"`     // 最高
+	Low      float64 `json:"low"`      // 最低
+	UpdateAt string  `json:"update_at"`// 更新时间
+}
+
+func main() {
+	// 初始化 Gin 引擎（开发模式，生产环境用 gin.ReleaseMode）
+	r := gin.Default()
+
+	// 1. 静态文件服务（用于部署你之前的股票监控网页）
+	// 把你的 HTML/CSS/JS 文件放到项目根目录的 static 文件夹下
+	r.Static("/static", "./static")
+	// 访问根路径时，返回静态网页
+	r.GET("/", func(c *gin.Context) {
+		c.File("./static/index.html") // 假设你的网页文件在 static/index.html
+	})
+
+	// 2. API 接口：获取实时股票数据（模拟数据，后续可替换为真实接口）
+	r.GET("/api/stock", func(c *gin.Context) {
+		// 获取请求参数（股票代码，默认上证指数）
+		stockCode := c.DefaultQuery("code", "sh000001")
+
+		// 替换原来的 switch 逻辑，改为实时请求腾讯 API
+	// 在 API 接口处理函数中：
+	resp, err := http.Get("https://qt.gtimg.cn/q=" + stockCode)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "获取数据失败"})
+		return
+	}
+	defer resp.Body.Close()
+
+	body, _ := ioutil.ReadAll(resp.Body)
+	dataStr := string(body)
+	dataArr := strings.Split(dataStr, "~")
+
+	// 解析数据（腾讯 API 返回格式：~名称~代码~当前价~涨跌幅~今开~最高~最低~昨收价~...）
+	name := dataArr[1]
+	price, _ := strconv.ParseFloat(dataArr[3], 64)
+	change, _ := strconv.ParseFloat(dataArr[4], 64)
+	open, _ := strconv.ParseFloat(dataArr[5], 64)
+	high, _ := strconv.ParseFloat(dataArr[6], 64)
+	low, _ := strconv.ParseFloat(dataArr[7], 64)
+	prevClose, _ := strconv.ParseFloat(dataArr[8], 64)
+
+	stock := StockData{
+		Code:     stockCode,
+		Name:     name,
+		Price:    price,
+		Change:   change,
+		Open:     open,
+		High:     high,
+		Low:      low,
+		PrevClose: prevClose,
+		UpdateAt: time.Now().Format("15:04:05"),
+	}
+
+		// 返回 JSON 格式的股票数据
+		c.JSON(http.StatusOK, gin.H{
+			"success": true,
+			"data":    stock,
+		})
+	})
+
+	// 3. 启动服务（端口 8080）
+	err := r.Run(":9090")
+	if err != nil {
+		panic("服务启动失败：" + err.Error())
+	}
+}
